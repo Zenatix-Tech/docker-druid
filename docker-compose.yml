@@ -4,7 +4,6 @@ services:
   druid-zookeeper:
     stdin_open: true
     tty: true
-    build: .
     image: gcr.io/zenatix-data-archiver/druid:latest
     container_name: druid-zookeeper
     user: daemon
@@ -17,18 +16,34 @@ services:
         zenatix-docker:
             ipv4_address: ${DRUID_ZOOKEEPER_IP}
 
-  druid-mysql:
+  druid-init:
     stdin_open: true
     tty: true
+    build: .
     image: gcr.io/zenatix-data-archiver/druid:latest
-    container_name: druid-mysql
-    user: mysql
-    entrypoint: ["bash", "-c", "/usr/bin/pidproxy /var/run/mysqld/mysqld.pid /usr/bin/mysqld_safe"]
-    ports:
-      - "3306:3306"
+    container_name: druid-init
+    environment:
+      - DRUID_POSTGRESQL_IP=${DRUID_POSTGRESQL_IP}
     networks:
         zenatix-docker:
-            ipv4_address: ${DRUID_MYSQL_IP}
+            ipv4_address: ${DRUID_INIT_IP}
+
+  druid-postgresql:
+    stdin_open: true
+    tty: true
+    image: library/postgres
+    container_name: druid-postgresql
+    environment:
+      - POSTGRES_USER=druid
+      - POSTGRES_PASSWORD=diurd
+      - POSTGRES_DB=druid
+    ports:
+      - "5432:5432"
+    volumes:
+        - postgresql-druid-volume:/var/lib/postgresql/data
+    networks:
+        zenatix-docker:
+            ipv4_address: ${DRUID_POSTGRESQL_IP}
 
   druid-coordinator:
     stdin_open: true
@@ -36,7 +51,9 @@ services:
     image: gcr.io/zenatix-data-archiver/druid:latest
     container_name: druid-coordinator
     user: druid
-    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=%(${DRUID_COORDINATOR_IP})s -Ddruid.extensions.loadList=[\"mysql-metadata-storage\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.metadata.storage.type=mysql -Ddruid.metadata.storage.connector.connectURI=jdbc:mysql://${DRUID_MYSQL_IP}:3306/druid -Ddruid.metadata.storage.connector.user=druid -Ddruid.metadata.storage.connector.password=diurd -Ddruid.coordinator.asOverlord.enabled=true -Ddruid.coordinator.asOverlord.overlordService=druid/overlord -Ddruid.indexer.fork.property.druid.processing.numThreads=1 -Ddruid.indexer.storage.type=metadata -Ddruid.indexer.queue.startDelay=PT0M -Ddruid.indexer.runner.javaOpts=\"-server -Xmx1g -XX:MaxDirectMemorySize=2147483648\" -Ddruid.processing.buffer.sizeBytes=536870912 -Ddruid.coordinator.startDelay=PT5S -cp /usr/local/druid/lib/* io.druid.cli.Main server coordinator"]
+    env_file:
+      - .env
+    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\\\"postgresql-metadata-storage\\\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.metadata.storage.type=postgresql -Ddruid.metadata.storage.connector.connectURI=jdbc:postgresql://${DRUID_POSTGRESQL_IP}:5432/druid -Ddruid.metadata.storage.connector.user=druid -Ddruid.metadata.storage.connector.password=diurd -Ddruid.coordinator.asOverlord.enabled=true -Ddruid.coordinator.asOverlord.overlordService=druid/overlord -Ddruid.indexer.fork.property.druid.processing.numThreads=1 -Ddruid.indexer.storage.type=metadata -Ddruid.indexer.queue.startDelay=PT0M -Ddruid.indexer.runner.javaOpts=\"-server -Xmx1g -XX:MaxDirectMemorySize=2147483648\" -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.processing.buffer.sizeBytes=536870912 -Ddruid.coordinator.startDelay=PT5S -cp /usr/local/druid/lib/* io.druid.cli.Main server coordinator"]
     ports:
       - "8081:8081"
       - "8090:8090"
@@ -50,7 +67,7 @@ services:
     image: gcr.io/zenatix-data-archiver/druid:latest
     container_name: druid-historical
     user: druid
-    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=%(${DRUID_HISTORICAL_IP})s -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations=\"[{\"path\":\"/var/tmp/druid/indexCache\",\"maxSize\":5000000000}]\" -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical"] 
+    entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/tmp/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
     ports:
       - "8083:8083"
     networks:
@@ -63,7 +80,7 @@ services:
     image: gcr.io/zenatix-data-archiver/druid:latest
     container_name: druid-broker
     user: druid
-    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=%(${DRUID_BROKER_IP})s -Ddruid.computation.buffer.size=67108864 -Ddruid.broker.cache.sizeInBytes=33554432 -cp /usr/local/druid/lib/* io.druid.cli.Main server broker"] 
+    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.computation.buffer.size=67108864 -Ddruid.broker.cache.sizeInBytes=33554432 -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -cp /usr/local/druid/lib/* io.druid.cli.Main server broker"] 
     ports:
       - "8082:8082"
     networks:
@@ -75,3 +92,7 @@ networks:
     zenatix-docker:
         external:
             name: zenatix-docker
+
+volumes:
+    postgresql-druid-volume:
+        external: true

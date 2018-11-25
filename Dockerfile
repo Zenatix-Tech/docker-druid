@@ -12,7 +12,7 @@ RUN sed -i -e 's/http:\/\/archive/mirror:\/\/mirrors/' -e 's/http:\/\/security/m
       apt-add-repository -y ppa:webupd8team/java && \
       apt-get purge --auto-remove -y software-properties-common && apt-get update && \
       echo oracle-java-8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
-      apt-get install -y oracle-java8-installer oracle-java8-set-default mysql-server supervisor git && \
+      apt-get install -y oracle-java8-installer oracle-java8-set-default git && \
       apt-get autoremove -y && apt-get clean && rm -rf /var/cache/oracle-jdk8-installer && \
       rm -rf /var/lib/apt/lists/*
 
@@ -41,37 +41,35 @@ RUN git clone -q --branch $DRUID_VERSION --depth 1 https://github.com/$GITHUB_OW
       mvn -U -B org.codehaus.mojo:versions-maven-plugin:2.1:set -DgenerateBackupPoms=false -DnewVersion=$DRUID_VERSION && \ 
       mvn -U -B install -DskipTests=true -Dmaven.javadoc.skip=true && \
       cp services/target/druid-services-$DRUID_VERSION-selfcontained.jar /usr/local/druid/lib && \
-      cp -r extensions-contrib/ /usr/local/druid/ && \
-      cp -r extensions-core/ /usr/local/druid/ && \
-      cp -r indexing-hadoop/target /usr/local/druid/ && \
+      cp -r distribution/target/extensions /usr/local/druid/ && \
+      cp -r distribution/target/hadoop-dependencies /usr/local/druid/ && \
       apt-get purge --auto-remove -y git && apt-get clean && \
       rm -rf /tmp/* /var/tmp/* /usr/local/apache-maven-3.2.5 /usr/local/apache-maven /root/.m2
 
 WORKDIR /
 
 # Setup metadata store and add sample data
-ADD sample-data.sql sample-data.sql
-RUN find /var/lib/mysql -type f -exec touch {} \; && /etc/init.d/mysql start && \
-      mysql -u root -e "GRANT ALL ON druid.* TO 'druid'@'localhost' IDENTIFIED BY 'diurd'; CREATE database druid CHARACTER SET utf8;" && \
-      java -cp /usr/local/druid/lib/druid-services-*-selfcontained.jar -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.loadList=[\"mysql-metadata-storage\"]  -Ddruid.metadata.storage.type=mysql org.apache.druid.cli.Main tools metadata-init --connectURI="jdbc:mysql://$DRUID_MYSQL_IP:3306/druid" --user=druid --password=diurd && \
-      mysql -u root druid < sample-data.sql && /etc/init.d/mysql stop
+ADD sample-data.sql /sample-data.sql
 
 # Setup supervisord
 ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Setup init.sh
+ADD init.sh /init.sh
 
 # Expose ports:
 # - 8081: HTTP (coordinator)
 # - 8082: HTTP (broker)
 # - 8083: HTTP (historical)
 # - 8090: HTTP (overlord)
-# - 3306: MySQL
 # - 2181 2888 3888: ZooKeeper
 EXPOSE 8081
 EXPOSE 8082
 EXPOSE 8083
 EXPOSE 8090
-EXPOSE 3306
 EXPOSE 2181 2888 3888
 
 WORKDIR /var/lib/druid
-ENTRYPOINT export HOSTIP="$(resolveip -s $HOSTNAME)" && find /var/lib/mysql -type f -exec touch {} \; && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+
+ENTRYPOINT [ "bash", "-c", "/init.sh" ]
+# ENTRYPOINT export HOSTIP="$(resolveip -s $HOSTNAME)" && find /var/lib/mysql -type f -exec touch {} \; && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
