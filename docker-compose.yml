@@ -4,7 +4,7 @@ services:
   druid-zookeeper:
     stdin_open: true
     tty: true
-    image: gcr.io/zenatix-data-archiver/druid:latest
+    image: zenatix/druid:latest
     container_name: druid-zookeeper
     user: daemon
     ports:
@@ -20,7 +20,7 @@ services:
     stdin_open: true
     tty: true
     build: .
-    image: gcr.io/zenatix-data-archiver/druid:latest
+    image: zenatix/druid:latest
     container_name: druid-init
     environment:
       - DRUID_POSTGRESQL_IP=${DRUID_POSTGRESQL_IP}
@@ -31,7 +31,7 @@ services:
   druid-postgresql:
     stdin_open: true
     tty: true
-    image: library/postgres
+    image: library/postgres:latest
     container_name: druid-postgresql
     environment:
       - POSTGRES_USER=druid
@@ -48,7 +48,7 @@ services:
   druid-coordinator:
     stdin_open: true
     tty: true
-    image: gcr.io/zenatix-data-archiver/druid:latest
+    image: zenatix/druid:latest
     container_name: druid-coordinator
     user: druid
     env_file:
@@ -64,7 +64,7 @@ services:
   druid-historical:
     stdin_open: true
     tty: true
-    image: gcr.io/zenatix-data-archiver/druid:latest
+    image: zenatix/druid:latest
     container_name: druid-historical
     user: druid
     entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/tmp/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
@@ -77,7 +77,7 @@ services:
   druid-broker:
     stdin_open: true
     tty: true
-    image: gcr.io/zenatix-data-archiver/druid:latest
+    image: zenatix/druid:latest
     container_name: druid-broker
     user: druid
     entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.computation.buffer.size=67108864 -Ddruid.broker.cache.sizeInBytes=33554432 -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -cp /usr/local/druid/lib/* io.druid.cli.Main server broker"] 
