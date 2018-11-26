@@ -67,9 +67,11 @@ services:
     image: zenatix/druid:latest
     container_name: druid-historical
     user: druid
-    entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/tmp/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
+    entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/lib/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
     ports:
       - "8083:8083"
+    volumes:
+      - druid-historical-segment-volume:/var/lib/druid/indexCache
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_HISTORICAL_IP}
@@ -95,4 +97,6 @@ networks:
 
 volumes:
     postgresql-druid-volume:
+        external: true
+    druid-historical-segment-volume:
         external: true
