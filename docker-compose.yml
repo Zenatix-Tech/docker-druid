@@ -50,7 +50,7 @@ services:
     tty: true
     image: zenatix/druid:latest
     container_name: druid-coordinator
-    user: druid
+    user: root #FIXME: changed from druid to allow volume writes. Needs revert.
     env_file:
       - .env
     entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\\\"postgresql-metadata-storage\\\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.metadata.storage.type=postgresql -Ddruid.metadata.storage.connector.connectURI=jdbc:postgresql://${DRUID_POSTGRESQL_IP}:5432/druid -Ddruid.metadata.storage.connector.user=druid -Ddruid.metadata.storage.connector.password=diurd -Ddruid.coordinator.asOverlord.enabled=true -Ddruid.coordinator.asOverlord.overlordService=druid/overlord -Ddruid.indexer.fork.property.druid.processing.numThreads=2 -Ddruid.indexer.storage.type=metadata -Ddruid.indexer.queue.startDelay=PT0M -Ddruid.indexer.runner.javaOpts=\"-server -Xmx4g -XX:MaxDirectMemorySize=4294967296\" -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.processing.buffer.sizeBytes=536870912 -Ddruid.coordinator.startDelay=PT0S -Ddruid.coordinator.merge.on=False -Ddruid.coordinator.conversion.on=False -cp /usr/local/druid/lib/* io.druid.cli.Main server coordinator"]
