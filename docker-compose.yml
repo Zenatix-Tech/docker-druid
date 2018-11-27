@@ -38,7 +38,7 @@ services:
       - POSTGRES_PASSWORD=diurd
       - POSTGRES_DB=druid
     ports:
-      - "5432:5432"
+      - "5436:5432"
     volumes:
         - postgresql-druid-volume:/var/lib/postgresql/data
     networks:
