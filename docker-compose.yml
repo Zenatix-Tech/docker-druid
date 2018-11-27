@@ -59,6 +59,7 @@ services:
       - "8090:8090"
     volumes:
       - druid-historical-deepstore-volume:/tmp/druid/localStorage
+      - data:/var/lib/druid/data/
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_COORDINATOR_IP}
