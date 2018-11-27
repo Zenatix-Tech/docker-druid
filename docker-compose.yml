@@ -99,7 +99,7 @@ networks:
 volumes:
     postgresql-druid-volume:
         external: true
-    druid-historical-segment-volume:
+    druid-historical-index-volume:
         external: true
     druid-historical-deepstore-volume:
         external: true
