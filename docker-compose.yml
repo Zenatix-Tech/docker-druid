@@ -70,7 +70,7 @@ services:
     image: zenatix/druid:latest
     container_name: druid-historical
     user: root #FIXME: changed from druid to allow volume writes. Needs revert.
-    entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/lib/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
+    entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_HISTORICAL_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/lib/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
     ports:
       - "8083:8083"
     volumes:
@@ -86,7 +86,7 @@ services:
     image: zenatix/druid:latest
     container_name: druid-broker
     user: druid
-    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.computation.buffer.size=67108864 -Ddruid.broker.cache.sizeInBytes=33554432 -Ddruid.sql.enable=True -Ddruid.sql.planner.useApproximateCountDistinct=False -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -cp /usr/local/druid/lib/* io.druid.cli.Main server broker"]
+    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_BROKER_IP} -Ddruid.computation.buffer.size=67108864 -Ddruid.broker.cache.sizeInBytes=33554432 -Ddruid.sql.enable=True -Ddruid.sql.planner.useApproximateCountDistinct=False -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -cp /usr/local/druid/lib/* io.druid.cli.Main server broker"]
     ports:
       - "8082:8082"
     networks:
