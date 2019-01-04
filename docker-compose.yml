@@ -4,29 +4,92 @@ services:
   druid-zookeeper:
     stdin_open: true
     tty: true
+    build: .
     image: zenatix/druid:latest
     container_name: druid-zookeeper
-    user: daemon
+    volumes:
+      - ./conf:/druid/conf
     ports:
       - "2181:2181"
       - "2888:2888"
       - "3888:3888"
-    entrypoint: ["bash", "-c", "/usr/local/zookeeper/bin/zkServer.sh start-foreground"]
+    entrypoint: ["bash", "-c", "bin/run-zk /druid/conf"]
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_ZOOKEEPER_IP}
 
-  druid-init:
+  druid-coordinator:
     stdin_open: true
     tty: true
-    build: .
     image: zenatix/druid:latest
-    container_name: druid-init
-    environment:
-      - DRUID_POSTGRESQL_IP=${DRUID_POSTGRESQL_IP}
+    container_name: druid-coordinator
+    volumes:
+      - ./conf:/druid/conf
+      - druid-historical-deepstore-volume:/var/druid/segments
+      - ./data:/var/lib/druid/data/
+    ports:
+      - "8081:8081"
+    entrypoint: ["bash", "-c", "bin/run-druid coordinator /druid/conf"]
     networks:
         zenatix-docker:
-            ipv4_address: ${DRUID_INIT_IP}
+            ipv4_address: ${DRUID_COORDINATOR_IP}
+
+  druid-overlord:
+    stdin_open: true
+    tty: true
+    image: zenatix/druid:latest
+    container_name: druid-overlord
+    volumes:
+      - ./conf:/druid/conf
+    ports:
+      - "8090:8090"
+    entrypoint: ["bash", "-c", "bin/run-druid overlord /druid/conf"]
+    networks:
+        zenatix-docker:
+            ipv4_address: ${DRUID_OVERLORD_IP}
+
+  druid-middlemanager:
+    stdin_open: true
+    tty: true
+    image: zenatix/druid:latest
+    container_name: druid-middlemanager
+    volumes:
+      - ./conf:/druid/conf
+    ports:
+      - "8091:8091"
+    entrypoint: ["bash", "-c", "bin/run-druid middleManager /druid/conf"]
+    networks:
+        zenatix-docker:
+            ipv4_address: ${DRUID_MIDDLEMANAGER_IP}
+
+  druid-historical:
+    stdin_open: true
+    tty: true
+    image: zenatix/druid:latest
+    container_name: druid-historical
+    entrypoint: ["bash", "-c", "bin/run-druid historical /druid/conf"] 
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./conf:/druid/conf
+      - druid-historical-index-volume:/var/lib/druid/indexCache
+      - druid-historical-deepstore-volume:/tmp/druid/localStorage
+    networks:
+        zenatix-docker:
+            ipv4_address: ${DRUID_HISTORICAL_IP}
+  druid-broker:
+    stdin_open: true
+    tty: true
+    image: zenatix/druid:latest
+    container_name: druid-broker
+    volumes:
+      - ./conf:/druid/conf
+    entrypoint: ["bash", "-c", "bin/run-druid broker /druid/conf"]
+    ports:
+      - "8082:8082"
+    networks:
+        zenatix-docker:
+            ipv4_address: ${DRUID_BROKER_IP}
 
   druid-postgresql:
     stdin_open: true
@@ -44,55 +107,6 @@ services:
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_POSTGRESQL_IP}
-
-  druid-coordinator:
-    stdin_open: true
-    tty: true
-    image: zenatix/druid:latest
-    container_name: druid-coordinator
-    user: root #FIXME: changed from druid to allow volume writes. Needs revert.
-    env_file:
-      - .env
-    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_COORDINATOR_IP} -Ddruid.extensions.loadList=[\\\"postgresql-metadata-storage\\\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.metadata.storage.type=postgresql -Ddruid.metadata.storage.connector.connectURI=jdbc:postgresql://${DRUID_POSTGRESQL_IP}:5432/druid -Ddruid.metadata.storage.connector.user=druid -Ddruid.metadata.storage.connector.password=diurd -Ddruid.coordinator.asOverlord.enabled=true -Ddruid.coordinator.asOverlord.overlordService=druid/overlord -Ddruid.indexer.fork.property.druid.processing.numThreads=2 -Ddruid.indexer.storage.type=metadata -Ddruid.indexer.queue.startDelay=PT0M -Ddruid.indexer.runner.javaOpts=\"-server -Xmx4g -XX:MaxDirectMemorySize=4294967296\" -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.processing.buffer.sizeBytes=536870912 -Ddruid.coordinator.startDelay=PT0S -Ddruid.coordinator.merge.on=True -Ddruid.coordinator.conversion.on=True -cp /usr/local/druid/lib/* io.druid.cli.Main server coordinator"]
-    ports:
-      - "8081:8081"
-      - "8090:8090"
-    volumes:
-      - druid-historical-deepstore-volume:/tmp/druid/localStorage
-      - ./data:/var/lib/druid/data/
-    networks:
-        zenatix-docker:
-            ipv4_address: ${DRUID_COORDINATOR_IP}
-
-  druid-historical:
-    stdin_open: true
-    tty: true
-    image: zenatix/druid:latest
-    container_name: druid-historical
-    user: root #FIXME: changed from druid to allow volume writes. Needs revert.
-    entrypoint: ["bash", "-c", 'java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_HISTORICAL_IP} -Ddruid.extensions.loadList=[\"druid-s3-extensions\"] -Ddruid.extensions.directory=/usr/local/druid/extensions -Ddruid.extensions.hadoopDependenciesDir=/usr/local/druid/hadoop-dependencies -Ddruid.s3.accessKey=AKIAIMKECRUYKDQGR6YQ -Ddruid.s3.secretKey=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 -Ddruid.computation.buffer.size=67108864 -Ddruid.segmentCache.locations="[{\"path\":\"/var/lib/druid/indexCache\",\"maxSize\":5000000000}]"  -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -Ddruid.server.maxSize=5000000000 -cp /usr/local/druid/lib/* io.druid.cli.Main server historical'] 
-    ports:
-      - "8083:8083"
-    volumes:
-      - druid-historical-index-volume:/var/lib/druid/indexCache
-      - druid-historical-deepstore-volume:/tmp/druid/localStorage
-    networks:
-        zenatix-docker:
-            ipv4_address: ${DRUID_HISTORICAL_IP}
-
-  druid-broker:
-    stdin_open: true
-    tty: true
-    image: zenatix/druid:latest
-    container_name: druid-broker
-    user: druid
-    entrypoint: ["bash", "-c", "java -server -Xmx1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Ddruid.host=${DRUID_BROKER_IP} -Ddruid.computation.buffer.size=67108864 -Ddruid.broker.cache.sizeInBytes=33554432 -Ddruid.sql.enable=True -Ddruid.sql.planner.useApproximateCountDistinct=False -Ddruid.zk.service.host=${DRUID_ZOOKEEPER_IP} -cp /usr/local/druid/lib/* io.druid.cli.Main server broker"]
-    ports:
-      - "8082:8082"
-    networks:
-        zenatix-docker:
-            ipv4_address: ${DRUID_BROKER_IP}
-
   
 networks:
     zenatix-docker:
