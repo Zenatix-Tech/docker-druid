@@ -25,8 +25,7 @@ services:
     container_name: druid-coordinator
     volumes:
       - ./conf:/druid/conf
-      - druid-historical-deepstore-volume:/var/druid/segments
-      - ./data:/var/lib/druid/data/
+      - druid-volume:/var/druid
     ports:
       - "8081:8081"
     entrypoint: ["bash", "-c", "bin/run-druid coordinator /druid/conf"]
@@ -72,8 +71,7 @@ services:
       - "8083:8083"
     volumes:
       - ./conf:/druid/conf
-      - druid-historical-index-volume:/var/lib/druid/indexCache
-      - druid-historical-deepstore-volume:/tmp/druid/localStorage
+      - druid-volume:/var/druid
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_HISTORICAL_IP}
@@ -116,7 +114,5 @@ networks:
 volumes:
     postgresql-druid-volume:
         external: true
-    druid-historical-index-volume:
-        external: true
-    druid-historical-deepstore-volume:
+    druid-volume:
         external: true
