@@ -11,8 +11,8 @@ services:
       - ./conf:/druid/conf
     ports:
       - "2181:2181"
-      - "2888:2888"
-      - "3888:3888"
+    depends_on:
+      - druid-postgresql
     entrypoint: ["bash", "-c", "bin/run-zk /druid/conf"]
     networks:
         zenatix-docker:
@@ -30,6 +30,8 @@ services:
     ports:
       - "8081:8081"
     entrypoint: ["bash", "-c", "bin/run-druid coordinator /druid/conf"]
+    depends_on:
+      - druid-zookeeper
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_COORDINATOR_IP}
@@ -46,6 +48,8 @@ services:
     ports:
       - "8090:8090"
     entrypoint: ["bash", "-c", "bin/run-druid overlord /druid/conf"]
+    depends_on:
+      - druid-historical
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_OVERLORD_IP}
@@ -62,6 +66,8 @@ services:
     ports:
       - "8091:8091"
     entrypoint: ["bash", "-c", "bin/run-druid middleManager /druid/conf"]
+    depends_on:
+      - druid-overlord
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_MIDDLEMANAGER_IP}
@@ -72,6 +78,8 @@ services:
     image: zenatix/druid:latest
     container_name: druid-historical
     entrypoint: ["bash", "-c", "bin/run-druid historical /druid/conf"] 
+    depends_on:
+      - druid-router
     ports:
       - "8083:8083"
     volumes:
@@ -91,11 +99,29 @@ services:
       - druid-volume:/var/druid
       - ./data:/var/druid/data
     entrypoint: ["bash", "-c", "bin/run-druid broker /druid/conf"]
+    depends_on:
+      - druid-coordinator
     ports:
       - "8082:8082"
     networks:
         zenatix-docker:
             ipv4_address: ${DRUID_BROKER_IP}
+
+  druid-router:
+    stdin_open: true
+    tty: true
+    image: zenatix/druid:latest
+    container_name: druid-router
+    volumes:
+      - ./conf:/druid/conf
+    entrypoint: ["bash", "-c", "bin/run-druid router /druid/conf"]
+    depends_on:
+      - druid-broker
+    ports:
+      - "8888:8888"
+    networks:
+        zenatix-docker:
+            ipv4_address: ${DRUID_ROUTER_IP}
 
   druid-postgresql:
     stdin_open: true
